@@ -4,9 +4,27 @@ import numpy as np
 
 def fetch_forex_price():
     url = "https://api.forexprovider.com/latest"
-    response = requests.get(url)
-    data = response.json()
-    return data["XAUUSD"]  # ดึงราคาทองคำ (XAU/USD)
+    
+    try:
+        response = requests.get(url)
+        response.raise_for_status()  # เช็ค HTTP Error เช่น 404, 500
+        if response.text.strip():  # ตรวจสอบว่า Response ไม่ใช่ค่าว่าง
+            data = response.json()  # แปลง JSON
+            return data.get("XAUUSD", None)  # ตรวจสอบว่ามี Key "XAUUSD" หรือไม่
+        else:
+            print("Empty response from API.")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"API Request Error: {e}")
+        return None
+    except requests.exceptions.JSONDecodeError:
+        print("Error decoding JSON. Response may not be in JSON format.")
+        print(f"Response: {response.text}")
+        return None
+
+# ทดสอบการดึงข้อมูล
+price = fetch_forex_price()
+print(f"Forex Price: {price}")
 
 def analyze_market():
     prices = [fetch_forex_price() for _ in range(10)]
