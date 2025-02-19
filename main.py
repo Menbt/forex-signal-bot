@@ -18,17 +18,35 @@ def send_telegram_message(message):
     requests.post(url, json=data)
 
 def fetch_forex_price_history():
-    headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
-    params = {
-        "limit": 200,  # ดึงข้อมูลราคาย้อนหลัง 200 จุด
-        "interval": "1h"  # ระยะเวลา 1 ชั่วโมงต่อบาร์
-    }
-    response = requests.get(GOLD_API_URL, headers=headers, params=params)
-    if response.status_code == 200:
-        data = response.json()
-        prices = [item["close"] for item in data["prices"]]
-        return prices
-    return None
+    global last_request_time, request_count
+
+    # ตรวจสอบเวลาปัจจุบัน
+    current_time = time.time()
+
+    # หากเวลาผ่านไปเกิน 1 ชั่วโมง (3600 วินาที) หลังจากดึงข้อมูลครั้งล่าสุด
+    if current_time - last_request_time > TIME_FRAME:
+        # รีเซ็ตการนับจำนวนครั้ง
+        request_count = 0
+        last_request_time = current_time
+
+    # หากจำนวนครั้งที่เรียก API น้อยกว่า 10 ครั้งใน 1 ชั่วโมง
+    if request_count < MAX_REQUESTS_PER_HOUR:
+        headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
+        params = {
+            "limit": 200,  # ดึงข้อมูลราคาย้อนหลัง 200 จุด
+            "interval": "6m"  # ระยะเวลา 6 นาทีต่อบาร์
+        }
+        response = requests.get(GOLD_API_URL, headers=headers, params=params)
+        
+        if response.status_code == 200:
+            data = response.json()
+            prices = [item["close"] for item in data["prices"]]
+            request_count += 1  # เพิ่มจำนวนครั้งที่เรียก API
+            return prices
+        else:
+            return None
+    else:
+        return {"error": "API request limit exceeded. Please wait for the next hour."}
 
 def analyze_market(prices):
     if len(prices) < 200:
