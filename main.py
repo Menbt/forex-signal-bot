@@ -1,56 +1,84 @@
 import requests
 import time
+import talib
+import numpy as np
 
+# ตัวแปรเก็บราคาย้อนหลัง
+prices = []
+
+# ดึงราคาจาก API
 def fetch_forex_price():
     url = "https://api.forexprovider.com/latest"
     response = requests.get(url)
+    data = response.json()
+    return data["XAUUSD"]  # ราคาทองคำ (XAU/USD)
 
-    if response.status_code == 200:
-        try:
-            data = response.json()
-            return data.get("XAUUSD", None)  # ดึงราคาทองคำ
-        except requests.exceptions.JSONDecodeError:
-            print("Error: ไม่สามารถแปลงข้อมูลเป็น JSON ได้")
-            return None
-    else:
-        print(f"Error: API ตอบกลับ {response.status_code}")
+# คำนวณแนวรับแนวต้าน
+def calculate_support_resistance(prices):
+    if len(prices) < 20:
+        return None, None
+    support = min(prices[-20:])
+    resistance = max(prices[-20:])
+    return support, resistance
+
+# วิเคราะห์สัญญาณซื้อขาย
+def generate_signal(prices):
+    if len(prices) < 21:
         return None
-
-def generate_signal(price):
+    
+    price = prices[-1]
+    close_prices = np.array(prices, dtype=float)
+    
+    # คำนวณ EMA
+    ema_9 = talib.EMA(close_prices, timeperiod=9)
+    ema_21 = talib.EMA(close_prices, timeperiod=21)
+    
+    # คำนวณ RSI
+    rsi = talib.RSI(close_prices, timeperiod=14)
+    
+    # คำนวณ MACD
+    macd, signal, _ = talib.MACD(close_prices, fastperiod=12, slowperiod=26, signalperiod=9)
+    
+    # คำนวณแนวรับแนวต้าน
+    support, resistance = calculate_support_resistance(prices)
+    
     sl = 5  # Stop Loss 5 pips
     tp = 10 # Take Profit 10 pips
-    buffer = 2  # แจ้งเตือนล่วงหน้าก่อนถึงราคาเข้าออเดอร์ 2 pips
     
-    if price >= 2935 - buffer and price < 2935:  # แจ้งเตือนก่อนเข้า Buy
-        print("⚠️ Price approaching BUY entry at 2935")
-    elif price <= 2930 + buffer and price > 2930:  # แจ้งเตือนก่อนเข้า Sell
-        print("⚠️ Price approaching SELL entry at 2930")
-    
-    if price > 2935:  # เงื่อนไขเข้า Buy
+    # เงื่อนไขเข้า Buy
+    if ema_9[-1] > ema_21[-1] and macd[-1] > signal[-1] and rsi[-1] > 50 and price > resistance:
         return {
             "signal": "BUY",
             "entry": price,
             "sl": round(price - sl, 2),
             "tp": round(price + tp, 2)
         }
-    elif price < 2930:  # เงื่อนไขเข้า Sell
+    
+    # เงื่อนไขเข้า Sell
+    elif ema_9[-1] < ema_21[-1] and macd[-1] < signal[-1] and rsi[-1] < 50 and price < support:
         return {
             "signal": "SELL",
             "entry": price,
             "sl": round(price + sl, 2),
             "tp": round(price - tp, 2)
         }
-    else:
-        return None  # ยังไม่มีสัญญาณ
+    
+    return None
 
+# ฟังก์ชันหลัก
 def main():
+    global prices
     while True:
         price = fetch_forex_price()
-        generate_signal(price)  # เรียกใช้เพื่อให้แจ้งเตือนล่วงหน้าด้วย
-        signal = generate_signal(price)
+        prices.append(price)
+        
+        if len(prices) > 50:
+            prices.pop(0)  # เก็บแค่ 50 แท่งล่าสุด
+        
+        signal = generate_signal(prices)
         
         if signal:
-            print(f"✅ Signal: {signal['signal']} at {signal['entry']}, SL: {signal['sl']}, TP: {signal['tp']}")
+            print(f"Signal: {signal['signal']} at {signal['entry']}, SL: {signal['sl']}, TP: {signal['tp']}")
         else:
             print("No trade signal yet.")
         
