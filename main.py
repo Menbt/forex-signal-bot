@@ -10,7 +10,7 @@ TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
 TELEGRAM_CHAT_ID = "7841591847"
 
 # ตั้งค่า API ของ FreeForexAPI
-FOREX_API_URL = "https://www.freeforexapi.com/api/live?pairs=XAUUSD"
+FOREX_API_URL = "https://www.freeforexapi.com/api/live?pairs=USDXAU"
 
 # เวลาที่ดึงข้อมูลล่าสุด
 last_fetched_time = 0  # เปลี่ยนเป็น 0 เพื่อให้ดึงข้อมูลครั้งแรกทันที
@@ -31,9 +31,9 @@ def fetch_forex_price():
         try:
             response = requests.get(FOREX_API_URL)
             data = response.json()
-            if "rates" in data and "XAUUSD" in data["rates"]:
+            if "rates" in data and "USDXAU" in data["rates"]:
                 last_fetched_time = current_time  # อัปเดตเวลาที่ดึงข้อมูลล่าสุด
-                return data["rates"]["XAUUSD"]["rate"]
+                return data["rates"]["USDXAU"]["rate"]
         except Exception as e:
             print("❌ API Request Error:", e)
     
