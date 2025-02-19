@@ -121,7 +121,17 @@ def trade():
 
 @app.route('/')
 def home():
-    return "Forex Signal Bot is Running!"
+    signal = generate_signal()  # ดึงสัญญาณการเทรดล่าสุด
+    message = "Forex Signal Bot is Running!"
+    
+    if "error" in signal:
+        message = signal["error"]
+    elif "message" in signal:
+        message = signal["message"]
+    else:
+        message = f"Signal: {signal['signal']} at {signal['entry']}, SL: {signal['sl']}, TP: {signal['tp']}, Lot: {signal['lot']}"
+    
+    return message
 
 if __name__ == '__main__':
     app.run(host="0.0.0.0", port=10000)
