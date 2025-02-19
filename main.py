@@ -1,6 +1,7 @@
 import requests
 import numpy as np
 from flask import Flask, jsonify
+import time
 
 app = Flask(__name__)
 
@@ -11,6 +12,16 @@ TELEGRAM_CHAT_ID = "7841591847"
 # ตั้งค่า API ของ GoldAPI.io
 GOLD_API_KEY = "goldapi-3w2fcsm7bictes-io"
 GOLD_API_URL = "https://www.goldapi.io/api/XAU/USD/history"
+
+# ตัวแปรสำหรับควบคุมการดึงข้อมูลจาก API
+last_request_time = 0  # เวลาเมื่อครั้งสุดท้ายที่ดึงข้อมูล
+request_count = 0  # จำนวนครั้งที่เรียก API ใน 1 ชั่วโมง
+MAX_REQUESTS_PER_HOUR = 10  # จำกัดการเรียก API 10 ครั้งต่อชั่วโมง
+TIME_FRAME = 3600  # 1 ชั่วโมงในหน่วยวินาที
+
+# ตัวแปรสำหรับส่งข้อความทุกๆ 10 นาที
+last_signal_time = 0  # เวลาที่ส่งสัญญาณหรือข้อความล่าสุด
+SIGNAL_INTERVAL = 600  # 10 นาที (600 วินาที)
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -44,9 +55,24 @@ def fetch_forex_price_history():
             request_count += 1  # เพิ่มจำนวนครั้งที่เรียก API
             return prices
         else:
+            # ส่งข้อความแจ้งเตือนกรณี API ไม่ตอบกลับ
+            send_telegram_message("Error: Failed to fetch data from API")
             return None
     else:
+        # ส่งข้อความแจ้งเตือนกรณีเกินจำนวนครั้งที่ดึงข้อมูล
+        send_telegram_message("API request limit exceeded. Please wait for the next hour.")
         return {"error": "API request limit exceeded. Please wait for the next hour."}
+
+def calculate_support_resistance(prices):
+    # คำนวณระดับแนวรับ (Support) และแนวต้าน (Resistance) จากข้อมูลราคาย้อนหลัง
+    high = max(prices[-50:])  # ระดับราคาสูงสุดใน 50 จุดล่าสุด
+    low = min(prices[-50:])   # ระดับราคาต่ำสุดใน 50 จุดล่าสุด
+    range_ = high - low       # ช่วงของราคาที่เคลื่อนไหว
+
+    support = low + range_ * 0.382  # ใช้ Fibonacci retracement 38.2% สำหรับแนวรับ
+    resistance = high - range_ * 0.382  # ใช้ Fibonacci retracement 38.2% สำหรับแนวต้าน
+
+    return support, resistance
 
 def analyze_market(prices):
     if len(prices) < 200:
@@ -71,10 +97,14 @@ def analyze_market(prices):
 
 def generate_signal():
     prices = fetch_forex_price_history()
+    if isinstance(prices, dict) and "error" in prices:
+        return prices  # ส่งข้อความเมื่อเกินจำนวนครั้งที่ดึงข้อมูล
+
     if not prices:
         return {"error": "Price data unavailable"}
 
     trend, long_term_trend, super_long_term_trend, overbought, oversold, macd = analyze_market(prices)
+    support, resistance = calculate_support_resistance(prices)  # คำนวณระดับแนวรับและแนวต้าน
 
     if not trend:
         return {"message": "Not enough data for analysis"}
@@ -91,23 +121,33 @@ def generate_signal():
     points_needed_for_target_profit = target_profit_per_trade / profit_per_pip
 
     # กรณีซื้อ
-    if price > 2935 and trend == "BULLISH" and long_term_trend == "BULLISH" and super_long_term_trend == "BULLISH" and not overbought:
+    if price > resistance and trend == "BULLISH" and long_term_trend == "BULLISH" and super_long_term_trend == "BULLISH" and not overbought:
         # ถ้าอยู่ในกรอบบนสุดของตลาด ให้ตั้ง TP เป็น 100 จุด
-        take_profit = round(price + 100, 2) if price > 2950 else round(price + points_needed_for_target_profit, 2)
+        take_profit = round(price + 100, 2) if price > resistance else round(price + points_needed_for_target_profit, 2)
         stop_loss = round(price - STOP_LOSS, 2)
         signal = {"signal": "BUY", "entry": price, "sl": stop_loss, "tp": take_profit, "lot": LOT_SIZE}
     
     # กรณีขาย
-    elif price < 2930 and trend == "BEARISH" and long_term_trend == "BEARISH" and super_long_term_trend == "BEARISH" and not oversold:
+    elif price < support and trend == "BEARISH" and long_term_trend == "BEARISH" and super_long_term_trend == "BEARISH" and not oversold:
         # ถ้าอยู่ในกรอบล่างสุดของตลาด ให้ตั้ง TP เป็น 100 จุด
-        take_profit = round(price - 100, 2) if price < 2900 else round(price - points_needed_for_target_profit, 2)
+        take_profit = round(price - 100, 2) if price < support else round(price - points_needed_for_target_profit, 2)
         stop_loss = round(price + STOP_LOSS, 2)
         signal = {"signal": "SELL", "entry": price, "sl": stop_loss, "tp": take_profit, "lot": LOT_SIZE}
     
     else:
+        # ส่งข้อความทุก 10 นาทีกรณีไม่มีสัญญาณ
+        current_time = time.time()
+        global last_signal_time
+        
+        if current_time - last_signal_time >= SIGNAL_INTERVAL:
+            reason = "No trade signal: Conditions not met or market is not favorable."
+            send_telegram_message(f"Reminder: No signal to enter trade at {price}. Reason: {reason}")
+            last_signal_time = current_time  # อัปเดตเวลาที่ส่งข้อความ
+        
         return {"message": "No trade signal yet"}
 
     send_telegram_message(f"Signal: {signal['signal']} at {signal['entry']}, SL: {signal['sl']}, TP: {signal['tp']}, Lot: {signal['lot']}")
+    last_signal_time = time.time()  # อัปเดตเวลาส่งสัญญาณ
     return signal
 
 @app.route('/trade', methods=['GET'])
