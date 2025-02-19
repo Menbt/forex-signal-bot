@@ -2,7 +2,7 @@ import pandas as pd
 import requests
 
 # ตั้งค่า API ดึงข้อมูลราคาจริง (อาจใช้ Binance, Forex API)
-API_URL = "https://api.example.com/forex"  # <-- เปลี่ยนเป็น API จริง
+API_URL = "https://api.forexprovider.com"  # <-- เปลี่ยนเป็น API จริง
 
 def get_price():
     """ ดึงราคาล่าสุดจาก API """
