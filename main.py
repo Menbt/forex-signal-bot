@@ -3,8 +3,12 @@ import time
 import numpy as np
 
 # ตั้งค่า Telegram Bot API
-TELEGRAM_BOT_TOKEN = "your_telegram_bot_token"
-TELEGRAM_CHAT_ID = "your_chat_id"
+TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
+TELEGRAM_CHAT_ID = "7841591847"
+
+# ตั้งค่า API ของ GoldAPI.io
+GOLD_API_KEY = "your_goldapi_key"
+GOLD_API_URL = "https://www.goldapi.io/api/XAU/USD"
 
 def send_telegram_message(message):
     url = f"https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage"
@@ -16,11 +20,11 @@ def send_telegram_message(message):
         print("Failed to send message to Telegram")
 
 def fetch_forex_price():
-    url = "https://api.forexprovider.com/latest"  # เปลี่ยนเป็น API ที่ใช้งานได้จริง
-    response = requests.get(url)
+    headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
+    response = requests.get(GOLD_API_URL, headers=headers)
     if response.status_code == 200:
         data = response.json()
-        return data.get("XAUUSD", None)
+        return data.get("price", None)
     else:
         print("Failed to fetch price")
         return None
@@ -31,7 +35,7 @@ def analyze_market():
         price = fetch_forex_price()
         if price:
             prices.append(price)
-        time.sleep(1)
+        time.sleep(6 * 60)  # ดึงข้อมูลทุก 6 นาที
     if len(prices) < 10:
         return None, None, None, None
     
@@ -75,7 +79,7 @@ def main():
         else:
             print("Price data unavailable.")
         
-        time.sleep(60)
+        time.sleep(6 * 60)  # ดึงข้อมูลทุก 6 นาทีเพื่อไม่ให้เกิน 10 requests/ชั่วโมง
 
 if __name__ == "__main__":
     main()
