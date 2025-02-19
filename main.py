@@ -13,20 +13,25 @@ def analyze_market():
     ema_short = np.mean(prices[-5:])
     ema_long = np.mean(prices)
     rsi = 100 - (100 / (1 + (np.mean(prices[-5:]) / np.mean(prices[-10:]))))
-    
+    macd = ema_short - ema_long
     trend = "BULLISH" if ema_short > ema_long else "BEARISH"
     overbought = rsi > 70
     oversold = rsi < 30
-    
-    return trend, overbought, oversold
+    return trend, overbought, oversold, macd
 
 def generate_signal(price):
     sl = 10  # Stop Loss 10 pips
     tp = 20  # Take Profit 20 pips
     lot_size = 0.05  # Lot size ตามเป้าหมาย
-    trend, overbought, oversold = analyze_market()
+    trend, overbought, oversold, macd = analyze_market()
+    alert_threshold = 2  # แจ้งเตือนล่วงหน้าเมื่อเข้าใกล้ระดับ
+
+    if 2935 - alert_threshold < price < 2935 and trend == "BULLISH" and not overbought:
+        print(f"[ALERT] Price approaching BUY entry zone: {price}")
+    elif 2930 + alert_threshold > price > 2930 and trend == "BEARISH" and not oversold:
+        print(f"[ALERT] Price approaching SELL entry zone: {price}")
     
-    if price > 2935 and trend == "BULLISH" and not overbought:
+    if price > 2935 and trend == "BULLISH" and not overbought and macd > 0:
         return {
             "signal": "BUY",
             "entry": price,
@@ -34,7 +39,7 @@ def generate_signal(price):
             "tp": round(price + tp, 2),
             "lot": lot_size
         }
-    elif price < 2930 and trend == "BEARISH" and not oversold:
+    elif price < 2930 and trend == "BEARISH" and not oversold and macd < 0:
         return {
             "signal": "SELL",
             "entry": price,
