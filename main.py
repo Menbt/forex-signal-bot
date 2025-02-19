@@ -10,7 +10,7 @@ TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
 TELEGRAM_CHAT_ID = "7841591847"
 
 # ตั้งค่า API ของ Finnhub
-FINNHUB_API_KEY = "cuqqnshr01qhaag320j0cuqqnshr01qhaag320jg"
+FINNHUB_API_KEY = "cuqqnshr01qhaag320j0cuqqnshr01qhaag320j0g"
 FINNHUB_API_URL = "https://finnhub.io/api/v1/quote?symbol=OANDA:XAUUSD&token=" + FINNHUB_API_KEY
 
 # เวลาที่ดึงข้อมูลล่าสุด
