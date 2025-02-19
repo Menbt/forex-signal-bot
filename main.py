@@ -6,11 +6,11 @@ import time
 app = Flask(__name__)
 
 # ตั้งค่า Telegram Bot API
-TELEGRAM_BOT_TOKEN = "your_bot_token"
-TELEGRAM_CHAT_ID = "your_chat_id"
+TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
+TELEGRAM_CHAT_ID = "7841591847"
 
 # ตั้งค่า API ของ GoldAPI.io
-GOLD_API_KEY = "your_goldapi_key"
+GOLD_API_KEY = "goldapi-3w2fcsm7bictes-io"
 GOLD_API_URL = "https://www.goldapi.io/api/XAU/USD"
 
 # เวลาที่ดึงข้อมูลล่าสุด
