@@ -1,2 +1,3 @@
-pandas
+flask
 requests
+numpy
