@@ -1,33 +1,51 @@
-import pandas as pd
 import requests
+import time
 
-# ตั้งค่า API ดึงข้อมูลราคาจริง (อาจใช้ Binance, Forex API)
-API_URL = "https://api.forexprovider.com"  # <-- เปลี่ยนเป็น API จริง
-
-def get_price():
-    """ ดึงราคาล่าสุดจาก API """
-    response = requests.get(API_URL)
+def fetch_forex_price():
+    url = "https://api.forexprovider.com/latest"
+    response = requests.get(url)
     data = response.json()
-    return data["price"]
+    return data["XAUUSD"]  # ดึงราคาทองคำ (XAU/USD)
 
-def calculate_ema(data, period):
-    """ คำนวณ EMA (Exponential Moving Average) """
-    return data.ewm(span=period, adjust=False).mean()
+def generate_signal(price):
+    sl = 5  # Stop Loss 5 pips
+    tp = 10 # Take Profit 10 pips
+    buffer = 2  # แจ้งเตือนล่วงหน้าก่อนถึงราคาเข้าออเดอร์ 2 pips
+    
+    if price >= 2935 - buffer and price < 2935:  # แจ้งเตือนก่อนเข้า Buy
+        print("⚠️ Price approaching BUY entry at 2935")
+    elif price <= 2930 + buffer and price > 2930:  # แจ้งเตือนก่อนเข้า Sell
+        print("⚠️ Price approaching SELL entry at 2930")
+    
+    if price > 2935:  # เงื่อนไขเข้า Buy
+        return {
+            "signal": "BUY",
+            "entry": price,
+            "sl": round(price - sl, 2),
+            "tp": round(price + tp, 2)
+        }
+    elif price < 2930:  # เงื่อนไขเข้า Sell
+        return {
+            "signal": "SELL",
+            "entry": price,
+            "sl": round(price + sl, 2),
+            "tp": round(price - tp, 2)
+        }
+    else:
+        return None  # ยังไม่มีสัญญาณ
 
-def generate_signal():
-    """ ตรวจสอบสัญญาณ Buy/Sell """
-    prices = pd.Series([get_price() for _ in range(100)])  # จำลองราคา 100 จุด
-    ema10 = calculate_ema(prices, 10)
-    ema50 = calculate_ema(prices, 50)
-    ema200 = calculate_ema(prices, 200)
+def main():
+    while True:
+        price = fetch_forex_price()
+        generate_signal(price)  # เรียกใช้เพื่อให้แจ้งเตือนล่วงหน้าด้วย
+        signal = generate_signal(price)
+        
+        if signal:
+            print(f"✅ Signal: {signal['signal']} at {signal['entry']}, SL: {signal['sl']}, TP: {signal['tp']}")
+        else:
+            print("No trade signal yet.")
+        
+        time.sleep(60)  # รอ 1 นาที
 
-    if ema10.iloc[-1] > ema50.iloc[-1] > ema200.iloc[-1]:
-        return "📈 Buy Signal"
-    elif ema10.iloc[-1] < ema50.iloc[-1] < ema200.iloc[-1]:
-        return "📉 Sell Signal"
-    return "⏳ No Clear Signal"
-
-# แสดงผล
 if __name__ == "__main__":
-    signal = generate_signal()
-    print(f"🔔 Forex Signal: {signal}")
+    main()
