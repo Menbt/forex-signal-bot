@@ -9,12 +9,11 @@ app = Flask(__name__)
 TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
 TELEGRAM_CHAT_ID = "7841591847"
 
-# ตั้งค่า API ของ GoldAPI.io
-GOLD_API_KEY = "goldapi-3w2fcsm7bictes-io"
-GOLD_API_URL = "https://www.goldapi.io/api/XAU/USD"
+# ตั้งค่า API ของ FreeForexAPI
+FOREX_API_URL = "https://www.freeforexapi.com/api/live?pairs=XAUUSD"
 
 # เวลาที่ดึงข้อมูลล่าสุด
-last_fetched_time = time.time()
+last_fetched_time = 0  # เปลี่ยนเป็น 0 เพื่อให้ดึงข้อมูลครั้งแรกทันที
 
 # ฟังก์ชันการส่งข้อความผ่าน Telegram
 def send_telegram_message(message):
@@ -22,20 +21,23 @@ def send_telegram_message(message):
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, json=data)
 
-# ฟังก์ชันดึงข้อมูลราคาจาก API
+# ฟังก์ชันดึงข้อมูลราคาจาก FreeForexAPI
 def fetch_forex_price():
     global last_fetched_time
     current_time = time.time()
-    # ตรวจสอบว่าเวลาผ่านไปมากกว่า 6 นาที (360 วินาที) แล้วหรือยัง
-    if current_time - last_fetched_time > 360:
-        headers = {"x-access-token": GOLD_API_KEY, "Content-Type": "application/json"}
-        response = requests.get(GOLD_API_URL, headers=headers)
-        if response.status_code == 200:
+
+    # ตรวจสอบว่าผ่านไปมากกว่า 60 วินาที (1 นาที) แล้วหรือยัง
+    if current_time - last_fetched_time > 60:
+        try:
+            response = requests.get(FOREX_API_URL)
             data = response.json()
-            last_fetched_time = current_time  # อัปเดตเวลาที่ดึงข้อมูลล่าสุด
-            return data.get("price", None)
-    else:
-        return None  # ถ้าผ่านไปไม่ถึง 6 นาที จะไม่ดึงข้อมูลใหม่
+            if "rates" in data and "XAUUSD" in data["rates"]:
+                last_fetched_time = current_time  # อัปเดตเวลาที่ดึงข้อมูลล่าสุด
+                return data["rates"]["XAUUSD"]["rate"]
+        except Exception as e:
+            print("❌ API Request Error:", e)
+    
+    return None  # ถ้าไม่ถึงเวลา หรือ API มีปัญหา จะไม่ดึงข้อมูลใหม่
 
 # ฟังก์ชันคำนวณ Fibonacci retracement
 def fibonacci_retracement(prices):
