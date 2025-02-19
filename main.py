@@ -9,11 +9,13 @@ app = Flask(__name__)
 TELEGRAM_BOT_TOKEN = "8157023046:AAErPaovjPYId1TayDThm1_81NCh3VZpSa0"
 TELEGRAM_CHAT_ID = "7841591847"
 
-# ตั้งค่า API ของ FreeForexAPI
-FOREX_API_URL = "https://www.freeforexapi.com/api/live?pairs=USDXAU"
+# ตั้งค่า API ของ Finnhub
+FINNHUB_API_KEY = "cuqqnshr01qhaag320j0cuqqnshr01qhaag320jg"
+FINNHUB_API_URL = "https://finnhub.io/api/v1/quote?symbol=OANDA:XAU_USD&token=" + FINNHUB_API_KEY
 
 # เวลาที่ดึงข้อมูลล่าสุด
-last_fetched_time = 0  # เปลี่ยนเป็น 0 เพื่อให้ดึงข้อมูลครั้งแรกทันที
+last_fetched_time = 0
+fetch_interval = 60  # ดึงข้อมูลทุก ๆ 1 นาที
 
 # ฟังก์ชันการส่งข้อความผ่าน Telegram
 def send_telegram_message(message):
@@ -21,23 +23,17 @@ def send_telegram_message(message):
     data = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
     requests.post(url, json=data)
 
-# ฟังก์ชันดึงข้อมูลราคาจาก FreeForexAPI
+# ฟังก์ชันดึงข้อมูลราคาจาก API
 def fetch_forex_price():
     global last_fetched_time
     current_time = time.time()
-
-    # ตรวจสอบว่าผ่านไปมากกว่า 60 วินาที (1 นาที) แล้วหรือยัง
-    if current_time - last_fetched_time > 60:
-        try:
-            response = requests.get(FOREX_API_URL)
+    if current_time - last_fetched_time >= fetch_interval:
+        response = requests.get(FINNHUB_API_URL)
+        if response.status_code == 200:
             data = response.json()
-            if "rates" in data and "USDXAU" in data["rates"]:
-                last_fetched_time = current_time  # อัปเดตเวลาที่ดึงข้อมูลล่าสุด
-                return data["rates"]["USDXAU"]["rate"]
-        except Exception as e:
-            print("❌ API Request Error:", e)
-    
-    return None  # ถ้าไม่ถึงเวลา หรือ API มีปัญหา จะไม่ดึงข้อมูลใหม่
+            last_fetched_time = current_time
+            return data.get("c", None)  # ใช้ราคาปิดล่าสุดจาก API
+    return None
 
 # ฟังก์ชันคำนวณ Fibonacci retracement
 def fibonacci_retracement(prices):
