@@ -4,8 +4,17 @@ import time
 def fetch_forex_price():
     url = "https://api.forexprovider.com/latest"
     response = requests.get(url)
-    data = response.json()
-    return data["XAUUSD"]  # ดึงราคาทองคำ (XAU/USD)
+
+    if response.status_code == 200:
+        try:
+            data = response.json()
+            return data.get("XAUUSD", None)  # ดึงราคาทองคำ
+        except requests.exceptions.JSONDecodeError:
+            print("Error: ไม่สามารถแปลงข้อมูลเป็น JSON ได้")
+            return None
+    else:
+        print(f"Error: API ตอบกลับ {response.status_code}")
+        return None
 
 def generate_signal(price):
     sl = 5  # Stop Loss 5 pips
